@@ -1,0 +1,9 @@
+streamlit
+PyPDF2
+spacy
+pandas
+textblob
+sentence-transformers
+torch
+scipy
+numpy
