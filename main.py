@@ -1,4 +1,5 @@
 import streamlit as st
+import sys
 import PyPDF2
 import os
 import subprocess
@@ -7,6 +8,15 @@ import pandas as pd
 from textblob import TextBlob
 from sentence_transformers import SentenceTransformer, util
 from collections import defaultdict
+
+st.write(f"Python Version: {sys.version}")
+st.write("Streamlit app is running!")
+
+try:
+    import subprocess
+    st.write("Subprocess module is available!")
+except ImportError:
+    st.error("Subprocess module is missing!")
 
 try:
     import torch
