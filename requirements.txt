@@ -4,3 +4,9 @@ python-multipart
 streamlit
 google-generativeai
 PyPDF2
+spacy
+spacy-lookups-data
+pandas
+textblob
+sentence-transformers
+torch
