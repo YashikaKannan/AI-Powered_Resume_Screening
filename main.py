@@ -1,15 +1,26 @@
 import streamlit as st
 import PyPDF2
 import os
+import subprocess
 import spacy
 import pandas as pd
 from textblob import TextBlob
 from sentence_transformers import SentenceTransformer, util
 from collections import defaultdict
 
+try:
+    import torch
+except ImportError:
+    subprocess.run(["pip", "install", "torch"], check=True)
+
+try:
+    import sentence_transformers
+except ImportError:
+    subprocess.run(["pip", "install", "sentence-transformers"], check=True)
+    
 # Load NLP model
 if not spacy.util.is_package("en_core_web_sm"):
-    os.system("python -m spacy download en_core_web_sm")
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
 nlp = spacy.load("en_core_web_sm")
 model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
