@@ -1,18 +1,19 @@
 import streamlit as st
-import PyPDF2
-import os
 import spacy
+import os
+import PyPDF2
 import pandas as pd
 from textblob import TextBlob
 from sentence_transformers import SentenceTransformer, util
 from collections import defaultdict
-# Ensure the SpaCy model is available
-os.system("python -m spacy download en_core_web_sm")
 
-# Load the NLP model
+# Ensure spaCy model is downloaded
+if not os.path.exists(spacy.util.get_data_path() / "en_core_web_sm"):
+    os.system("python -m spacy download en_core_web_sm")
+
+# Load spaCy model
 nlp = spacy.load("en_core_web_sm")
-
-# Load NLP model
+# Load the NLP model
 # nlp = spacy.load("en_core_web_sm")
 # os.system("python -m spacy download en_core_web_sm")
 # nlp = spacy.load("en_core_web_sm")
