@@ -14,7 +14,7 @@ try:
 except ImportError:
     subprocess.run(["pip", "install", "spacy"], check=True)
 
-subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+# subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
 
 # Load the model
 nlp = spacy.load("en_core_web_sm")
