@@ -1,5 +1,7 @@
 streamlit
 spacy==3.5.0
+thinc==8.1.10
+numpy==1.23.5
 PyPDF2
 pandas
 textblob
@@ -7,4 +9,3 @@ sentence-transformers
 torch
 scipy
 numpy
-
