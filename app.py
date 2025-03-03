@@ -1,94 +1,89 @@
 import streamlit as st
-import google.generativeai as genai
-import PyPDF2 as pdf
-import time
+import PyPDF2
+import os
+import spacy
+import pandas as pd
+from textblob import TextBlob
+from sentence_transformers import SentenceTransformer, util
+from collections import defaultdict
 
-# Configure API key
-genai.configure(api_key="AIzaSyB6Xb5Z-zb4evZg81rntCMfxU34srkWX0s")
-
-# Function to instantiate model and get response
-def get_gemini_response(input):
-    model = genai.GenerativeModel("gemini-pro")
-    response = model.generate_content(input)
-    return response.text
+# Load NLP model
+# nlp = spacy.load("en_core_web_sm")
+os.system("python -m spacy download en_core_web_sm")
+nlp = spacy.load("en_core_web_sm")
+model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
 # Function to extract text from PDF
-def input_pdf_text(uploaded_file):
-    reader = pdf.PdfReader(uploaded_file)
-    text = "".join([page.extract_text() or "" for page in reader.pages])
+def extract_text_from_pdf(uploaded_file):
+    pdf_reader = PyPDF2.PdfReader(uploaded_file)
+    text = "\n".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
     return text
 
-# Prompt Template
-input_prompt = """
-Hey act like a skilled or very experienced ATS (Application Tracking System)
-with a deep understanding of tech field, software engineering, data science, data analyst
-and bit data engineer. Your task is to evaluate the resume based on the given job description.
-You must consider the job market is very competitive and you should provide best assistance
-for improving the resumes. Assign the percentage matching based on JD (Job Description)
-and the missing keywords with high accuracy.
+# Function to check grammar and suggest improvements
+def check_grammar(text):
+    blob = TextBlob(text)
+    return blob.correct()
 
-I want the response in json structure like
-{
-    "JD Match": "%",
-    "Missing Keywords": [],
-    "Profile Summary": ""
-}
-"""
+# Function to check eligibility
+def check_eligibility(resume_text, criteria):
+    doc = nlp(resume_text.lower())
+    found_skills = {token.text for token in doc if token.text in criteria["Skills"]}
+    experience = any(exp in resume_text.lower() for exp in criteria["Experience"])
+    degree = any(deg in resume_text.lower() for deg in criteria["Degree"])
+    return found_skills, experience, degree
+
+# Function to screen a resume against a job description
+def screen_resume(resume_text, job_description):
+    resume_embedding = model.encode(resume_text, convert_to_tensor=True)
+    job_embedding = model.encode(job_description, convert_to_tensor=True)
+    similarity_score = util.pytorch_cos_sim(resume_embedding, job_embedding).item()
+    return similarity_score
+
+# Function to screen multiple resumes
+def screen_multiple_resumes(resumes, job_description):
+    results = []
+    for resume_text, file_name in resumes:
+        score = screen_resume(resume_text, job_description)
+        results.append((file_name, score))
+    return sorted(results, key=lambda x: x[1], reverse=True)
 
 # Streamlit UI
-st.set_page_config(page_title="ATS Resume Screening", layout="wide")
+st.title("AI-Powered Resume Screening System")
 
-st.markdown(
-    "<h1 style='text-align: center; color: #4A90E2;'>🚀 ATS Resume Screening</h1>", 
-    unsafe_allow_html=True
-)
-st.markdown("<h4 style='text-align: center;'>🔍 Match Your Resume Against Job Description</h4>", unsafe_allow_html=True)
+uploaded_files = st.file_uploader("Upload Resumes (PDF)", type=["pdf"], accept_multiple_files=True)
+job_description = st.text_area("Enter Job Description")
 
-st.divider()
-jd = st.text_area("📄 Paste the Job Description", height=150, help="Provide the JD for matching.")
-uploaded_file = st.file_uploader("📤 Upload Your Resume (PDF)", type="pdf", help="Upload your resume for screening.")
-
-if st.button("🚀 Analyze Resume", use_container_width=True):
-    if uploaded_file:
-        text = input_pdf_text(uploaded_file)
+if uploaded_files:
+    resumes = []
+    
+    for uploaded_file in uploaded_files:
+        resume_text = extract_text_from_pdf(uploaded_file)
+        resumes.append((resume_text, uploaded_file.name))
         
-        st.toast("⏳ Screening in progress... Please wait.", icon="⏳")
+        st.subheader(f"Resume: {uploaded_file.name}")
+        st.text(resume_text[:500])  # Show first 500 characters
         
-        response_json = get_gemini_response([input_prompt, f"Job Description:\n{jd}", f"Resume:\n{text}"])
+        # Resume Optimization
+        st.subheader("Resume Optimization (Grammar Check):")
+        optimized_text = check_grammar(resume_text)
+        st.text(optimized_text[:500])
         
-        try:
-            response_data = eval(response_json)  # Convert string JSON to dictionary
-            
-            jd_match = int(response_data["JD Match"].replace("%", "").strip())
-            missing_keywords = response_data["Missing Keywords"]
-            profile_summary = response_data["Profile Summary"]
-
-            st.divider()
-
-            # Horizontal Layout using Columns
-            col1, col2, col3 = st.columns([1, 1, 2])  # Adjust width ratios
-
-            # JD Match Percentage
-            with col1:
-                st.subheader("📊 JD Match")
-                st.progress(jd_match / 100)
-                st.info(f"✅ Matched: **{jd_match}%**")
-
-            # Missing Keywords
-            with col2:
-                st.subheader("🔑 Missing Keywords")
-                if missing_keywords:
-                    st.warning(", ".join(missing_keywords))
-                else:
-                    st.success("🎉 No missing keywords!")
-
-            # Profile Summary
-            with col3:
-                st.subheader("📝 Profile Summary")
-                st.text_area("Summary", profile_summary, height=150, disabled=True)
-
-        except Exception as e:
-            st.error("⚠️ Error processing the response. Please try again.")
-
-    else:
-        st.error("⚠️ Please upload your resume before submitting.")
+        # Eligibility Checking
+        criteria = {
+            "Skills": ["python", "machine learning", "data analysis", "java"],
+            "Experience": ["2+ years", "3+ years", "5+ years"],
+            "Degree": ["bachelor", "master", "phd"]
+        }
+        skills_found, experience_match, degree_match = check_eligibility(resume_text, criteria)
+        
+        st.subheader("Eligibility Check:")
+        st.write(f"Skills Matched: {', '.join(skills_found) if skills_found else 'None'}")
+        st.write(f"Experience Requirement Met: {'Yes' if experience_match else 'No'}")
+        st.write(f"Degree Requirement Met: {'Yes' if degree_match else 'No'}")
+    
+    # Resume Screening for multiple resumes
+    if job_description:
+        ranked_resumes = screen_multiple_resumes(resumes, job_description)
+        st.subheader("Ranked Resume Matches:")
+        df = pd.DataFrame(ranked_resumes, columns=["Resume Name", "Similarity Score"])
+        st.dataframe(df)
