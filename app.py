@@ -1,22 +1,23 @@
 import streamlit as st
 import spacy
 import os
+import subprocess
 import PyPDF2
 import pandas as pd
 from textblob import TextBlob
 from sentence_transformers import SentenceTransformer, util
 from collections import defaultdict
 
-# Ensure spaCy model is downloaded
-if not os.path.exists(spacy.util.get_data_path() / "en_core_web_sm"):
-    os.system("python -m spacy download en_core_web_sm")
+# Ensure spaCy and model are installed
+try:
+    import spacy
+except ImportError:
+    subprocess.run(["pip", "install", "spacy"], check=True)
 
-# Load spaCy model
+subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+
+# Load the model
 nlp = spacy.load("en_core_web_sm")
-# Load the NLP model
-# nlp = spacy.load("en_core_web_sm")
-# os.system("python -m spacy download en_core_web_sm")
-# nlp = spacy.load("en_core_web_sm")
 model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
 # Function to extract text from PDF
