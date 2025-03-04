@@ -1,23 +1,11 @@
 import streamlit as st
-# import spacy
-import os
-import subprocess
 import PyPDF2
 import pandas as pd
+import re
 from textblob import TextBlob
 from sentence_transformers import SentenceTransformer, util
-from collections import defaultdict
 
-# Ensure spaCy and model are installed
-# try:
-#     import spacy
-# except ImportError:
-#     subprocess.run(["pip", "install", "spacy"], check=True)
-
-# # subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
-
-# # Load the model
-# nlp = spacy.load("en_core_web_sm")
+# Load model
 model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
 # Function to extract text from PDF
@@ -33,10 +21,10 @@ def check_grammar(text):
 
 # Function to check eligibility
 def check_eligibility(resume_text, criteria):
-    doc = nlp(resume_text.lower())
-    found_skills = {token.text for token in doc if token.text in criteria["Skills"]}
-    experience = any(exp in resume_text.lower() for exp in criteria["Experience"])
-    degree = any(deg in resume_text.lower() for deg in criteria["Degree"])
+    resume_text_lower = resume_text.lower()
+    found_skills = {skill for skill in criteria["Skills"] if skill.lower() in resume_text_lower}
+    experience = any(re.search(rf"\b{exp}\b", resume_text_lower) for exp in criteria["Experience"])
+    degree = any(re.search(rf"\b{deg}\b", resume_text_lower) for deg in criteria["Degree"])
     return found_skills, experience, degree
 
 # Function to screen a resume against a job description
@@ -48,10 +36,7 @@ def screen_resume(resume_text, job_description):
 
 # Function to screen multiple resumes
 def screen_multiple_resumes(resumes, job_description):
-    results = []
-    for resume_text, file_name in resumes:
-        score = screen_resume(resume_text, job_description)
-        results.append((file_name, score))
+    results = [(file_name, screen_resume(resume_text, job_description)) for resume_text, file_name in resumes]
     return sorted(results, key=lambda x: x[1], reverse=True)
 
 # Streamlit UI
